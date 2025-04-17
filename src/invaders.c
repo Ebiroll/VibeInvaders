@@ -6,7 +6,7 @@
     #include <emscripten/emscripten.h>
 #endif
 
-#define UNIT_TEST 1
+// #define UNIT_TEST 1
 
 //----------------------------------------------------------------------------------
 // Defines
@@ -32,10 +32,14 @@
 #define ALIEN_SHOOT_INTERVAL_MIN   0.5f // Minimum time between alien shots
 #define ALIEN_SHOOT_INTERVAL_MAX   2.0f // Maximum time between alien shots
 
-#define UFO_SPEED               2.5f
-#define UFO_SPAWN_CHANCE        0.001f // Chance per frame for UFO to appear
+#define UFO_SPEED               55.0f
 #define UFO_POINTS              200
 
+      
+#define UFO_SPAWN_INTERVAL_MIN  30.0f // Minimum seconds until UFO appears
+#define UFO_SPAWN_INTERVAL_MAX  240.0f // Maximum seconds until UFO appears
+
+    
 
 //----------------------------------------------------------------------------------
 // Types and Structures Definition
@@ -461,7 +465,8 @@ void InitGame(void)
     ufo.textureRect = (Rectangle){ 0, 0, (float)ufo.texture.width, (float)ufo.texture.height };
     ufo.size = (Vector2){ ufo.textureRect.width * 1.5f, ufo.textureRect.height * 1.5f };
     ufo.active = false;
-    ufo.spawnTimer = GetRandomValue(600, 1200); // Frames until first potential spawn
+    //ufo.spawnTimer = GetRandomValue(600, 1200); // Frames until first potential spawn
+    ufo.spawnTimer = GetRandomValue((int)(UFO_SPAWN_INTERVAL_MIN * 100), (int)(UFO_SPAWN_INTERVAL_MAX * 100)) / 100.0f; 
     ufo.explosionTexture = ufoExplosionTexture;
     ufo.explosionTextureRect = (Rectangle){0, 0, (float)ufo.explosionTexture.width, (float)ufo.explosionTexture.height};
 
@@ -816,6 +821,7 @@ void UpdateBullets(float delta) {
 void UpdateUFO(float delta) {
     if (!ufo.active) {
         ufo.spawnTimer -= delta;
+#if 0        
         if (ufo.spawnTimer <= 0) {
              // Check chance every frame once timer is up
              if (GetRandomValue(1, (int)(1.0f/UFO_SPAWN_CHANCE)) == 1) {
@@ -823,6 +829,11 @@ void UpdateUFO(float delta) {
              }
              // Reset timer slightly so it doesn't check *every* frame forever
               ufo.spawnTimer = 0.1f;
+        }
+#endif
+        if (ufo.spawnTimer <= 0) {
+            SpawnUFO();
+            // The timer will be reset automatically when this spawned UFO goes off-screen or is destroyed.
         }
         return;
     }
@@ -833,18 +844,18 @@ void UpdateUFO(float delta) {
 
     // Play UFO sound (restart periodically for classic effect)
     if (fmodf(ufo.timeActive, 0.5f) < delta) { // Play roughly every 0.5 seconds
-         PlaySound(ufoHighSound); // Or alternate ufoLowSound
+         PlaySound(ufoLowSound); // Or alternate ufoLowSound
     }
 
 
     // Check if off screen
     if (ufo.speed > 0 && ufo.position.x > SCREEN_WIDTH) {
         ufo.active = false;
-         StopSound(ufoHighSound); // Stop sound when offscreen
+         StopSound(ufoLowSound); // Stop sound when offscreen
          ufo.spawnTimer = GetRandomValue(600, 1800) * delta; // Reset spawn timer
     } else if (ufo.speed < 0 && ufo.position.x + ufo.size.x < 0) {
         ufo.active = false;
-         StopSound(ufoHighSound);
+         StopSound(ufoLowSound);
          ufo.spawnTimer = GetRandomValue(600, 1800) * delta;
     }
 
@@ -854,7 +865,7 @@ void UpdateUFO(float delta) {
         if (ufo.explosionTimer <= 0) {
             ufo.exploding = false;
             ufo.active = false; // Deactivate fully after explosion
-            ufo.spawnTimer = GetRandomValue(600, 1800) * delta; // Reset spawn timer
+            ufo.spawnTimer = GetRandomValue((int)(UFO_SPAWN_INTERVAL_MIN * 100), (int)(UFO_SPAWN_INTERVAL_MAX * 100)) / 100.0f; // Correct time-based reset
         }
     }
 
@@ -917,8 +928,8 @@ void DamageShield(int shieldIndex, Vector2 hitPosition)
     UnloadImage(shieldImage);
     
     // Print for debugging
-    printf("[UNIT_TEST] DamageShield(%d) hit=(%.1f,%.1f) tex=(%.1f,%.1f)\n",
-           shieldIndex, hitPosition.x, hitPosition.y, localHit.x, localHit.y);
+    //printf("[UNIT_TEST] DamageShield(%d) hit=(%.1f,%.1f) tex=(%.1f,%.1f)\n",
+    //       shieldIndex, hitPosition.x, hitPosition.y, localHit.x, localHit.y);
 }
 
 #if 0
@@ -1023,7 +1034,7 @@ void CheckCollisions() {
                 ufo.explosionTimer = 0.5f;
                 score += UFO_POINTS; // Using defined constant
                 if (score > hiScore) hiScore = score;
-                StopSound(ufoHighSound);
+                StopSound(ufoLowSound);
                 PlaySound(ufoExplosionSound);
                 goto next_collision_check; // Exit checks for this shot
             }
@@ -1144,7 +1155,7 @@ void SpawnUFO() {
         ufo.position = (Vector2){ SCREEN_WIDTH, 50.0f };
         ufo.speed = -UFO_SPEED;
     }
-     PlaySound(ufoHighSound); // Start sound
+     PlaySound(ufoLowSound); // Start sound
 }
 
 void ResetLevel(bool playerDied) {
@@ -1157,7 +1168,7 @@ void ResetLevel(bool playerDied) {
     for(int i=0; i<MAX_ALIEN_BULLETS; ++i) alienBullets[i].active = false;
     // Deactivate UFO
     ufo.active = false;
-    StopSound(ufoHighSound);
+    StopSound(ufoLowSound);
     // Reset Shields (only if starting new game or new wave, not on player death?) - Classic game keeps shield damage.
     // If we want to reset shields on death/new wave:
     // for(int i=0; i<NUM_SHIELDS; ++i) UnloadRenderTexture(shields[i].renderTexture);
@@ -1178,7 +1189,7 @@ void NextLevel() {
     player.shotActive = false;
     for(int i=0; i<MAX_ALIEN_BULLETS; ++i) alienBullets[i].active = false;
     // Reset UFO spawn timer potentially faster
-    ufo.spawnTimer = GetRandomValue(400, 1000);
+    ufo.spawnTimer = GetRandomValue((int)(UFO_SPAWN_INTERVAL_MIN * 100), (int)(UFO_SPAWN_INTERVAL_MAX * 100)) / 100.0f; 
     // Reset shields? (Classic game keeps damage)
     // If resetting shields:
     for(int i=0; i<NUM_SHIELDS; ++i) UnloadRenderTexture(shields[i].renderTexture); // Unload old ones first
@@ -1301,7 +1312,7 @@ void DrawGame(void)
         }
 
         // Draw FPS (optional)
-        DrawFPS(SCREEN_WIDTH - 90, 10);
+        //DrawFPS(SCREEN_WIDTH - 90, 10);
 
     EndDrawing();
 }

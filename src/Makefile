@@ -34,6 +34,7 @@ PROJECT_VERSION       ?= 1.0
 PROJECT_BUILD_PATH    ?= .
 PROJECT_SOURCE_FILES  ?= invaders.c
 
+#RAYLIB_SRC_PATH       ?= /usr/local/lib
 RAYLIB_SRC_PATH       ?= /home/olof/work/raylib/src
 RAYLIB_INCLUDE_PATH   ?= $(RAYLIB_SRC_PATH)
 RAYLIB_LIB_PATH       ?= $(RAYLIB_SRC_PATH)
