@@ -2,6 +2,13 @@
 
 ### Description
 
+Here is an article about why I wrote this repo.
+https://olof-astrand.medium.com/vibe-coding-an-invaders-game-for-the-web-7f18ad739d0a
+
+
+## Try it online
+
+https://ebiroll.github.io/invaders/invaders.html
 
 
 ### Features
