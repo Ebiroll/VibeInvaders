@@ -284,22 +284,7 @@ bool TestPlayerBulletShieldCollision(int si, Vector2 shotPos, Vector2 shotSize, 
 #endif
 
 
-//////////////
 // -----------------------------------------------------------------------------
-// Space Invaders (raylib, web) – fixed shield‑collision so player shots can pass
-// "through the planets" (decorative background that re‑uses shield render pass).
-// -----------------------------------------------------------------------------
-//  NEW helper: convert from world‑space to *texture* coordinates taking the Y
-//    flip into account.  Used by DamageShield() and collision tests.
-//  DamageShield(), Player‑shot‑vs‑Shield and Alien‑shot‑vs‑Shield sections now
-//    call the helper so that we sample the correct pixel and only stop the shot
-//    when it actually hits an opaque part of the shield/planet.
-//  Minor safety clamps so we never read outside the texture.
-// -----------------------------------------------------------------------------
-
-// … (all your existing includes / #defines / structures stay the same)
-// -----------------------------------------------------------------------------
-// ★★★ ADD THIS JUST AFTER THE GLOBAL SHIELD ARRAY DECLARATION ★★★
 static Vector2 WorldToShieldTexCoords(int shieldIndex, Vector2 worldPos)
 {
     // Convert world position to the *render‑texture* pixel we are going to read
@@ -332,34 +317,6 @@ static Vector2 WorldToShieldTexCoords(int shieldIndex, Vector2 worldPos)
 //------------------------------------------------------------------------------------
 
 
-#if 0
-//----------------------------------------------------------------------------------
-// Simple test harness
-//----------------------------------------------------------------------------------
-static void RunShieldCollisionTests(void)
-{
-    InitShields();
-    alienBullets[0].active = true;
-    alienBullets[0].position = (Vector2){
-        shields[0].bounds.x + shields[0].bounds.width*0.5f,
-        shields[0].bounds.y + shields[0].bounds.height - 1
-    };
-    alienBullets[0].size = (Vector2){1,1};
-
-    Vector2 worldHit;
-    Color px;
-    bool hit = TestAlienBulletShieldCollision(0, 0, &worldHit, &px);
-    assert(hit && "UNIT_TEST: expected hit on a fresh shield");
-    printf("→ RunShieldCollisionTests PASSED\n");
-}
-
-int main(void)
-{
-    RunShieldCollisionTests();
-    printf("All UNIT_TESTs passed!\n");
-    return 0;
-}
-#else
 int main(void)
 {
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "raylib - Space Invaders");
@@ -389,7 +346,6 @@ int main(void)
 
     return 0;
 }
-#endif
 
 //----------------------------------------------------------------------------------
 // Module Functions Definition - Resource Management
@@ -930,8 +886,43 @@ void SpawnExplosion(Vector2 position, Texture2D tex, Rectangle texRect, Vector2 
     }
 }
 
+void DamageShield(int shieldIndex, Vector2 hitPosition)
+{
+    if (!shields[shieldIndex].active) return;
+    
+    Vector2 localHit = WorldToShieldTexCoords(shieldIndex, hitPosition);
+    const float damageRadius = 5.0f;
+    
+    // Get the texture image data
+    Image shieldImage = LoadImageFromTexture(shields[shieldIndex].renderTexture.texture);
+    
+    // Create a damage pattern in the image
+    for (int y = 0; y < shieldImage.height; y++) {
+        for (int x = 0; x < shieldImage.width; x++) {
+            float distance = sqrtf((x - localHit.x) * (x - localHit.x) + 
+                                  (y - localHit.y) * (y - localHit.y));
+            
+            if (distance <= damageRadius) {
+                // Make pixels transparent within the damage radius
+                Color* pixel = &((Color*)shieldImage.data)[y * shieldImage.width + x];
+                pixel->a = 0; // Set alpha to transparent
+            }
+        }
+    }
+    
+    // Update the texture with the modified image data
+    UpdateTexture(shields[shieldIndex].renderTexture.texture, shieldImage.data);
+    
+    // Free the image data
+    UnloadImage(shieldImage);
+    
+    // Print for debugging
+    printf("[UNIT_TEST] DamageShield(%d) hit=(%.1f,%.1f) tex=(%.1f,%.1f)\n",
+           shieldIndex, hitPosition.x, hitPosition.y, localHit.x, localHit.y);
+}
 
-
+#if 0
+// Gemini version
 void DamageShield(int shieldIndex, Vector2 hitPosition)
 {
     if (!shields[shieldIndex].active) return;
@@ -941,13 +932,20 @@ void DamageShield(int shieldIndex, Vector2 hitPosition)
     const float damageRadius = 5.0f;
     const float damageSize   = damageRadius * 2.0f;
 
+    // Print for debugging
+    printf("[UNIT_TEST] DamageShield(%d) hit=(%.1f,%.1f) tex=(%.1f,%.1f)\n",
+           shieldIndex, hitPosition.x, hitPosition.y, localHit.x, localHit.y);
+
     BeginTextureMode(shields[shieldIndex].renderTexture);
         DrawRectangleRec((Rectangle){ localHit.x - damageRadius,
                                       localHit.y - damageRadius,
                                       damageSize, damageSize },
                          BLANK);
+        // Draw a black circle for debugging
+        DrawCircle((int)localHit.x, (int)localHit.y, damageRadius, BLACK); 
     EndTextureMode();
 }
+    #endif
 
 #if 0
 void DamageShield(int shieldIndex, Vector2 hitPosition) {
