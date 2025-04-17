@@ -979,139 +979,17 @@ void DamageShield(int shieldIndex, Vector2 hitPosition) {
 #endif
 
 
+//----------------------------------------------------------------------------------
+// Module Functions Definition - Collision Detection
+//----------------------------------------------------------------------------------
 void CheckCollisions() {
 
-    // -----------------------------------------------------------------------------
-    // ★★★ In CheckCollisions() replace BOTH shield hit tests with the following ★★★
-    //  (Player shot vs Shields)
-    if (player.shotActive)
-    {
-        Rectangle playerShotRect = {player.shotPosition.x, player.shotPosition.y,
-                                    player.shotSize.x, player.shotSize.y};
+    // --- Player Shot Collisions ---
 
-        // Rectangle playerShotRect = { player.shotPosition.x, player.shotPosition.y, player.shotSize.x, player.shotSize.y };
-        for (int i = 0; i < NUM_ALIENS; i++)
-        {
-            if (aliens[i].active)
-            {
-                Rectangle alienRect = {aliens[i].position.x, aliens[i].position.y, aliens[i].size.x, aliens[i].size.y};
-                if (CheckCollisionRecs(playerShotRect, alienRect))
-                {
-                    player.shotActive = false;
-                    aliens[i].active = false;
-                    aliensAlive--;
-                    score += aliens[i].points;
-                    if (score > hiScore)
-                        hiScore = score;
-
-                    // Spawn Alien Explosion
-                    SpawnExplosion(
-                        (Vector2){aliens[i].position.x + aliens[i].size.x / 2, aliens[i].position.y + aliens[i].size.y / 2},
-                        alienExplosionTexture,
-                        (Rectangle){0, 0, (float)alienExplosionTexture.width, (float)alienExplosionTexture.height},
-                        (Vector2){(float)alienExplosionTexture.width * 1.5f, (float)alienExplosionTexture.height * 1.5f});
-
-                    PlaySound(invaderKilledSound);
-
-                    // Increase alien speed
-                    alienMoveWaitTime *= ALIEN_MOVE_SPEEDUP_FACTOR;
-                    // Ensure it doesn't get impossibly fast
-                    if (alienMoveWaitTime < 0.05f)
-                        alienMoveWaitTime = 0.05f;
-
-                    break; // Shot can only hit one alien
-                }
-            }
-        }
-
-        // 2. Player Shot vs UFO
-        if (player.shotActive && ufo.active && !ufo.exploding)
-        {
-            Rectangle playerShotRect = {player.shotPosition.x, player.shotPosition.y, player.shotSize.x, player.shotSize.y};
-            Rectangle ufoRect = {ufo.position.x, ufo.position.y, ufo.size.x, ufo.size.y};
-            if (CheckCollisionRecs(playerShotRect, ufoRect))
-            {
-                player.shotActive = false;
-                ufo.exploding = true;
-                ufo.explosionTimer = 0.5f; // UFO explosion lasts longer?
-                int ufoScore = UFO_POINTS; // Or random 100/150/200/300
-                score += ufoScore;
-                if (score > hiScore)
-                    hiScore = score;
-                StopSound(ufoHighSound); // Stop flight sound
-                PlaySound(ufoExplosionSound);
-                // The explosion itself is drawn in DrawGame based on ufo.exploding flag
-            }
-        }
-
-        for (int i = 0; i < NUM_SHIELDS; i++)
-        {
-            if (shields[i].active && CheckCollisionRecs(playerShotRect, shields[i].bounds))
-            {
-                Vector2 worldHit = (Vector2){playerShotRect.x + playerShotRect.width * 0.5f,
-                                             playerShotRect.y}; // top of bullet
-                Vector2 texHit = WorldToShieldTexCoords(i, worldHit);
-
-                Image texImg = LoadImageFromTexture(shields[i].renderTexture.texture);
-                Color px = GetImageColor(texImg, (int)texHit.x, (int)texHit.y);
-                UnloadImage(texImg);
-
-                if (px.a > 10) // Opaque → absorb shot
-                {
-                    player.shotActive = false;
-                    DamageShield(i, worldHit);
-                    SpawnExplosion(worldHit, shotExplosionTexture,
-                                   (Rectangle){0, 0, (float)shotExplosionTexture.width,
-                                               (float)shotExplosionTexture.height},
-                                   (Vector2){shotExplosionTexture.width * 1.5f,
-                                             shotExplosionTexture.height * 1.5f});
-                }
-                // else transparent – let the bullet continue
-                break;
-            }
-        }
-    }
-
-    // (Alien bullet vs Shields) – same idea:
-    for (int i = 0; i < MAX_ALIEN_BULLETS; i++)
-    {
-        if (!alienBullets[i].active)
-            continue;
-        Rectangle bulletRect = {alienBullets[i].position.x, alienBullets[i].position.y,
-                                alienBullets[i].size.x, alienBullets[i].size.y};
-        for (int s = 0; s < NUM_SHIELDS; s++)
-        {
-            if (shields[s].active && CheckCollisionRecs(bulletRect, shields[s].bounds))
-            {
-                Vector2 worldHit = (Vector2){bulletRect.x + bulletRect.width * 0.5f,
-                                             bulletRect.y + bulletRect.height}; // bottom
-                Vector2 texHit = WorldToShieldTexCoords(s, worldHit);
-
-                Image texImg = LoadImageFromTexture(shields[s].renderTexture.texture);
-                Color px = GetImageColor(texImg, (int)texHit.x, (int)texHit.y);
-                UnloadImage(texImg);
-
-                if (px.a > 10)
-                {
-                    alienBullets[i].active = false;
-                    DamageShield(s, worldHit);
-                    SpawnExplosion(worldHit, shotExplosionTexture,
-                                   (Rectangle){0, 0, (float)shotExplosionTexture.width,
-                                               (float)shotExplosionTexture.height},
-                                   (Vector2){shotExplosionTexture.width,
-                                             shotExplosionTexture.height});
-                }
-                break;
-            }
-        }
-    }
-}
-
-#if 0
-
-    // 1. Player Shot vs Aliens
     if (player.shotActive) {
         Rectangle playerShotRect = { player.shotPosition.x, player.shotPosition.y, player.shotSize.x, player.shotSize.y };
+
+        // 1. Player Shot vs Aliens
         for (int i = 0; i < NUM_ALIENS; i++) {
             if (aliens[i].active) {
                 Rectangle alienRect = { aliens[i].position.x, aliens[i].position.y, aliens[i].size.x, aliens[i].size.y };
@@ -1122,80 +1000,65 @@ void CheckCollisions() {
                     score += aliens[i].points;
                     if (score > hiScore) hiScore = score;
 
-                    // Spawn Alien Explosion
                     SpawnExplosion(
                         (Vector2){aliens[i].position.x + aliens[i].size.x/2, aliens[i].position.y + aliens[i].size.y/2},
                         alienExplosionTexture,
                         (Rectangle){0,0, (float)alienExplosionTexture.width, (float)alienExplosionTexture.height},
                         (Vector2){(float)alienExplosionTexture.width * 1.5f, (float)alienExplosionTexture.height * 1.5f}
                     );
-
                     PlaySound(invaderKilledSound);
-
-                    // Increase alien speed
                     alienMoveWaitTime *= ALIEN_MOVE_SPEEDUP_FACTOR;
-                    // Ensure it doesn't get impossibly fast
-                     if (alienMoveWaitTime < 0.05f) alienMoveWaitTime = 0.05f;
-
-
-                    break; // Shot can only hit one alien
+                    if (alienMoveWaitTime < 0.05f) alienMoveWaitTime = 0.05f;
+                    goto next_collision_check; // Exit alien loop once shot hits
                 }
             }
         }
-    }
 
-    // 2. Player Shot vs UFO
-    if (player.shotActive && ufo.active && !ufo.exploding) {
-        Rectangle playerShotRect = { player.shotPosition.x, player.shotPosition.y, player.shotSize.x, player.shotSize.y };
-        Rectangle ufoRect = { ufo.position.x, ufo.position.y, ufo.size.x, ufo.size.y };
-        if (CheckCollisionRecs(playerShotRect, ufoRect)) {
-            player.shotActive = false;
-            ufo.exploding = true;
-            ufo.explosionTimer = 0.5f; // UFO explosion lasts longer?
-            int ufoScore = UFO_POINTS; // Or random 100/150/200/300
-            score += ufoScore;
-            if (score > hiScore) hiScore = score;
-            StopSound(ufoHighSound); // Stop flight sound
-            PlaySound(ufoExplosionSound);
-            // The explosion itself is drawn in DrawGame based on ufo.exploding flag
+        // 2. Player Shot vs UFO
+        if (ufo.active && !ufo.exploding) {
+            Rectangle ufoRect = { ufo.position.x, ufo.position.y, ufo.size.x, ufo.size.y };
+            if (CheckCollisionRecs(playerShotRect, ufoRect)) {
+                player.shotActive = false;
+                ufo.exploding = true;
+                ufo.explosionTimer = 0.5f;
+                score += UFO_POINTS; // Using defined constant
+                if (score > hiScore) hiScore = score;
+                StopSound(ufoHighSound);
+                PlaySound(ufoExplosionSound);
+                goto next_collision_check; // Exit checks for this shot
+            }
         }
-    }
 
-
-    // 3. Player Shot vs Shields
-    if (player.shotActive) {
-         Rectangle playerShotRect = { player.shotPosition.x, player.shotPosition.y, player.shotSize.x, player.shotSize.y };
+        // 3. Player Shot vs Shields
         for (int i = 0; i < NUM_SHIELDS; i++) {
             if (shields[i].active && CheckCollisionRecs(playerShotRect, shields[i].bounds)) {
-                 // Check collision with non-transparent part of shield texture
-                 Vector2 collisionPoint = {playerShotRect.x + playerShotRect.width/2, playerShotRect.y}; // Hit at top edge of bullet
-                 Vector2 localHit = {collisionPoint.x - shields[i].position.x, collisionPoint.y - shields[i].position.y};
-                 localHit.x /= (shields[i].bounds.width / shields[i].renderTexture.texture.width);
-                 localHit.y /= (shields[i].bounds.height / shields[i].renderTexture.texture.height);
+                Vector2 worldHit = { playerShotRect.x + playerShotRect.width * 0.5f, playerShotRect.y }; // Top of bullet
+                Vector2 texHit = WorldToShieldTexCoords(i, worldHit);
 
-                 // Get Image data to check alpha (Can be slow, do only on collision check!)
-                 Image shieldImage = LoadImageFromTexture(shields[i].renderTexture.texture);
-                 Color pixel = GetImageColor(shieldImage, (int)localHit.x, (int)localHit.y);
-                 UnloadImage(shieldImage); // Unload immediately after checking!
+                // Optimization: Avoid LoadImageFromTexture every frame if possible
+                // For now, keeping the precise check:
+                Image texImg = LoadImageFromTexture(shields[i].renderTexture.texture);
+                Color px = GetImageColor(texImg, (int)texHit.x, (int)texHit.y);
+                UnloadImage(texImg);
 
-                 if (pixel.a > 10) { // Check if the hit point is not transparent
+                if (px.a > 10) { // Opaque pixel hit
                     player.shotActive = false;
-                    DamageShield(i, collisionPoint);
-                    // Spawn shot explosion
-                    SpawnExplosion(
-                        (Vector2){playerShotRect.x + playerShotRect.width/2, playerShotRect.y},
-                        shotExplosionTexture,
-                        (Rectangle){0,0, (float)shotExplosionTexture.width, (float)shotExplosionTexture.height},
-                        (Vector2){(float)shotExplosionTexture.width * 1.5f, (float)shotExplosionTexture.height * 1.5f}
-                    );
-                    break; // Stop checking other shields
-                 }
+                    DamageShield(i, worldHit);
+                    SpawnExplosion(worldHit, shotExplosionTexture,
+                                   (Rectangle){0, 0, (float)shotExplosionTexture.width, (float)shotExplosionTexture.height},
+                                   (Vector2){shotExplosionTexture.width * 1.5f, shotExplosionTexture.height * 1.5f});
+                    goto next_collision_check; // Exit shield loop and checks for this shot
+                }
+                // If transparent, bullet passes through
             }
         }
     }
 
+next_collision_check: // Label used by goto to skip further checks for the same player shot
 
-    // 4. Alien Shots vs Player
+    // --- Alien Shot Collisions ---
+
+    // 4. Alien Shots vs Player   <--- THIS WAS THE MISSING PART
     if (player.explosionTimer <= 0) { // Player can only be hit if not already exploding
         Rectangle playerRect = { player.position.x, player.position.y, player.size.x, player.size.y };
         for (int i = 0; i < MAX_ALIEN_BULLETS; i++) {
@@ -1203,49 +1066,50 @@ void CheckCollisions() {
                 Rectangle bulletRect = { alienBullets[i].position.x, alienBullets[i].position.y, alienBullets[i].size.x, alienBullets[i].size.y };
                 if (CheckCollisionRecs(bulletRect, playerRect)) {
                     alienBullets[i].active = false;
-                    player.explosionTimer = 1.0f; // Start explosion timer
-                    PlaySound(explosionSound);
-                    // No need to decrease lives here, happens when timer runs out
-                    break; // Only one bullet hits at a time
+                    player.explosionTimer = 1.0f; // Start player explosion timer
+                    PlaySound(explosionSound);    // Play player death sound
+                    // Lives are decremented in UpdateGame when the timer runs out
+                    break; // Player hit, no need to check other bullets against player this frame
                 }
             }
         }
-    }
+    } // End of Alien Shots vs Player Check
+
 
     // 5. Alien Shots vs Shields
     for (int i = 0; i < MAX_ALIEN_BULLETS; i++) {
-        if (alienBullets[i].active) {
-            Rectangle bulletRect = { alienBullets[i].position.x, alienBullets[i].position.y, alienBullets[i].size.x, alienBullets[i].size.y };
-            for (int s = 0; s < NUM_SHIELDS; s++) {
-                if (shields[s].active && CheckCollisionRecs(bulletRect, shields[s].bounds)) {
-                     // Check collision with non-transparent part of shield texture
-                     Vector2 collisionPoint = {bulletRect.x + bulletRect.width/2, bulletRect.y + bulletRect.height}; // Hit at bottom edge
-                     Vector2 localHit = {collisionPoint.x - shields[s].position.x, collisionPoint.y - shields[s].position.y};
-                     localHit.x /= (shields[s].bounds.width / shields[s].renderTexture.texture.width);
-                     localHit.y /= (shields[s].bounds.height / shields[s].renderTexture.texture.height);
+        if (!alienBullets[i].active) continue; // Skip inactive bullets or bullets that just hit the player
 
-                     Image shieldImage = LoadImageFromTexture(shields[s].renderTexture.texture);
-                     Color pixel = GetImageColor(shieldImage, (int)localHit.x, (int)localHit.y);
-                     UnloadImage(shieldImage);
+        Rectangle bulletRect = { alienBullets[i].position.x, alienBullets[i].position.y, alienBullets[i].size.x, alienBullets[i].size.y };
+        for (int s = 0; s < NUM_SHIELDS; s++) {
+            if (shields[s].active && CheckCollisionRecs(bulletRect, shields[s].bounds)) {
+                Vector2 worldHit = { bulletRect.x + bulletRect.width * 0.5f, bulletRect.y + bulletRect.height }; // Bottom of bullet
+                Vector2 texHit = WorldToShieldTexCoords(s, worldHit);
 
-                     if (pixel.a > 10) {
-                        alienBullets[i].active = false;
-                        DamageShield(s, collisionPoint);
-                        // Spawn shot explosion (optional for alien shots?)
-                        SpawnExplosion(
-                            (Vector2){bulletRect.x + bulletRect.width/2, bulletRect.y + bulletRect.height},
-                            shotExplosionTexture, // Use same explosion?
-                            (Rectangle){0,0, (float)shotExplosionTexture.width, (float)shotExplosionTexture.height},
-                            (Vector2){(float)shotExplosionTexture.width * 1.0f, (float)shotExplosionTexture.height * 1.0f} // Smaller?
-                        );
+                Image texImg = LoadImageFromTexture(shields[s].renderTexture.texture);
+                Color px = GetImageColor(texImg, (int)texHit.x, (int)texHit.y);
+                UnloadImage(texImg);
 
-                        break; // Stop checking other shields
-                    }
+                if (px.a > 10) { // Opaque pixel hit
+                    alienBullets[i].active = false; // Deactivate bullet
+                    DamageShield(s, worldHit);
+                    SpawnExplosion(worldHit, shotExplosionTexture, // Use shot explosion for bullet hitting shield
+                                   (Rectangle){0, 0, (float)shotExplosionTexture.width, (float)shotExplosionTexture.height},
+                                   (Vector2){shotExplosionTexture.width, shotExplosionTexture.height}); // Maybe smaller explosion
+                    goto next_alien_bullet; // Stop checking this bullet against other shields
                 }
+                // If transparent, bullet passes through
             }
         }
-    }
-        #endif
+    next_alien_bullet:; // Label used by goto
+    } // End of Alien Bullet Loop
+
+
+    // --- Alien vs Shield Collision (When aliens reach them) ---
+    // This logic is currently in UpdateGame() where aliens move down. It can stay there.
+
+} // End of CheckCollisions
+
 
 void SpawnPlayerShot() {
     if (!player.shotActive && player.explosionTimer <= 0) {
